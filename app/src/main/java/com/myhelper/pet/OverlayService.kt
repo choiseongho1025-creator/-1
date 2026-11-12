@@ -109,6 +109,7 @@ class OverlayService : Service() {
     private var overBar = false
     private var eventSerial = 0
     private var activeNotifPkg: String? = null
+    private var activeNotifIntent: PendingIntent? = null
     private var effectAnim: ValueAnimator? = null
 
     private var currentSlot = -1
@@ -478,7 +479,7 @@ class OverlayService : Service() {
         stopEffect()
         hideBubble()
         closeMenu()
-        activeNotifPkg = null
+        activeNotifPkg = null; activeNotifIntent = null
     }
 
     /** 이전 이미지/말풍선을 즉시 새것으로 교체. 이미지가 말풍선보다 길면 시간을 늘림 */
@@ -503,7 +504,7 @@ class OverlayService : Service() {
         stopEffect()
         hideBubble()
         closeMenu()
-        activeNotifPkg = null
+        activeNotifPkg = null; activeNotifIntent = null
         busy = false
         if (dragging) {
             setImage(3)
@@ -608,7 +609,7 @@ class OverlayService : Service() {
     // b
     private fun onSingleTap() {
         val pkg = activeNotifPkg
-        if (pkg != null) Apps.launch(this, pkg)        // g 말풍선 중 터치 → 알림 앱으로 이동
+        if (pkg != null) openNotification(pkg, activeNotifIntent)        // g 말풍선 중 터치 → 알림 앱으로 이동
         val base = max(loopMs(2), 500).toLong()
         showEvent(2, null, base, Cfg.effect(prefs, "b"))
     }
@@ -955,7 +956,7 @@ class OverlayService : Service() {
     }
 
     // ============ g: 알림 ============
-    fun onNotification(pkg: String, appLabel: String) {
+    fun onNotification(pkg: String, appLabel: String, pi: PendingIntent? = null) {
         if (!running || !inited) return
         val u = user()
         val honorific = prefs.getBoolean("honorific", true)
@@ -967,6 +968,25 @@ class OverlayService : Service() {
         sb.append(if (honorific) "에서 문자가 왔습니다." else "에서 문자가 왔어!")
         showEvent(1, sb, 5000, Cfg.effect(prefs, "g"))
         activeNotifPkg = pkg
+        activeNotifIntent = pi
+    }
+
+    private fun openNotification(pkg: String, pi: PendingIntent?) {
+        if (pi != null && prefs.getInt("notif_open", 0) == 0) {
+            try {
+                if (Build.VERSION.SDK_INT >= 34) {
+                    val opts = android.app.ActivityOptions.makeBasic()
+                    opts.setPendingIntentBackgroundActivityStartMode(
+                        android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
+                    )
+                    pi.send(this, 0, null, null, null, null, opts.toBundle())
+                } else {
+                    pi.send()
+                }
+                return
+            } catch (e: Exception) { }
+        }
+        Apps.launch(this, pkg)   // 실패하면 앱만 열기
     }
 
     // ============ 진동 ============

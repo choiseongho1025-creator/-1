@@ -31,6 +31,7 @@ class PetNotificationListener : NotificationListenerService() {
         if (pkg in muted) return
 
         val label = Apps.label(this, pkg)
-        Handler(Looper.getMainLooper()).post { svc.onNotification(pkg, label) }
+        val pi = n.contentIntent
+        Handler(Looper.getMainLooper()).post { svc.onNotification(pkg, label, pi) }
     }
 }

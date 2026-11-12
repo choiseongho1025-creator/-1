@@ -254,6 +254,13 @@ class SettingsActivity : Activity() {
     // ---------------- g ----------------
     private fun notifSection() {
         header("알림 말풍선 (g)")
+        root.addView(tv("말풍선이 떠 있을 때 캐릭터를 터치하면", 14f))
+        val og = RadioGroup(this)
+        og.addView(RadioButton(this).apply { text = "해당 알림 화면으로 이동 (가능한 경우)"; id = 4001 })
+        og.addView(RadioButton(this).apply { text = "앱만 열기"; id = 4002 })
+        og.check(if (p.getInt("notif_open", 0) == 0) 4001 else 4002)
+        og.setOnCheckedChangeListener { _, id -> p.edit().putInt("notif_open", if (id == 4001) 0 else 1).apply() }
+        root.addView(og)
         val muted = p.getStringSet("muted", emptySet())?.size ?: 0
         root.addView(btn("알림을 받지 않을 앱 선택 (현재 ${muted}개)") {
             val apps = Apps.launchable(this)
