@@ -158,8 +158,9 @@ class OverlayService : Service() {
             }
             "h_idx" -> if (!busy && !idleMode) scheduleH()
             "h_on" -> { resetIdle(); if (!busy && !dragging) toA() }
-            "walk_on" -> { if (walkOn()) scheduleWalk() else { setParked(false); stopWalk() } }
+            "walk_on" -> { if (walkOn()) scheduleWalk() else { setParked(false); stopWalk(); resetFlip() } }
             "walk_mode", "walk_wait" -> if (!busy && !dragging) scheduleWalk()
+            "face_keep" -> if (!prefs.getBoolean("face_keep", true)) resetFlip()
         }
     }
 
@@ -219,6 +220,8 @@ class OverlayService : Service() {
         loadScreen()
         buildChar()
         parked = prefs.getBoolean("parked", false) && walkOn()
+        flipped = prefs.getBoolean("flipped", false) && walkOn() && prefs.getBoolean("face_keep", true)
+        charView.scaleX = facingX()
         prefs.registerOnSharedPreferenceChangeListener(prefListener)
         running = true
         instance = this
@@ -426,7 +429,7 @@ class OverlayService : Service() {
         effectAnim = null
         offX = 0
         offY = 0
-        charView.scaleX = 1f
+        charView.scaleX = facingX()
         charView.scaleY = 1f
         charView.rotation = 0f
         charView.alpha = 1f
@@ -454,13 +457,13 @@ class OverlayService : Service() {
                 duration = ms(350)
                 addUpdateListener {
                     val v = it.animatedValue as Float
-                    charView.scaleX = v
+                    charView.scaleX = facingX(v)
                     charView.scaleY = v
                 }
             }
             4 -> ValueAnimator.ofFloat(-10f, 10f).apply {
                 duration = ms(180)
-                charView.scaleX = 0.85f
+                charView.scaleX = facingX(0.85f)
                 charView.scaleY = 0.85f
                 addUpdateListener { charView.rotation = it.animatedValue as Float }
             }
@@ -577,6 +580,27 @@ class OverlayService : Service() {
         showEvent(1, msg, 3000, 0, once = false, countIdle = false)
     }
 
+    // ---- 좌우 방향(반전) : 마지막으로 걸어간 방향을 모든 이미지에 적용 ----
+    private var flipped = false
+
+    private fun facingX(v: Float = 1f): Float = if (flipped) -v else v
+
+    private fun setFlip(f: Boolean) {
+        flipped = f
+        if (effectAnim?.isRunning != true) charView.scaleX = facingX()
+        prefs.edit().putBoolean("flipped", f).apply()
+    }
+
+    private fun resetFlip() {
+        setFlip(false)
+    }
+
+    private fun endFacing() {
+        if (!prefs.getBoolean("face_keep", true)) flipped = false
+        if (effectAnim?.isRunning != true) charView.scaleX = facingX()
+        prefs.edit().putBoolean("flipped", flipped).apply()
+    }
+
     // ============ 이동 (돌아다니기) ============
     private fun walkOn() = prefs.getBoolean("walk_on", false)
 
@@ -617,7 +641,7 @@ class OverlayService : Service() {
         if (Math.abs(dx) > dp(4)) {
             val faceRight = prefs.getInt("walk_face", 0) == 0
             val goingLeft = dx < 0
-            charView.scaleX = if (faceRight == goingLeft) -1f else 1f
+            setFlip(faceRight == goingLeft)
         }
         walking = true
         setImage(walkSlot())
@@ -639,7 +663,7 @@ class OverlayService : Service() {
                 if (canceled) return
                 walking = false
                 walkAnim = null
-                charView.scaleX = 1f
+                endFacing()
                 savePos()
                 setImage(if (idleMode) 5 else 1)
                 scheduleWalk()
@@ -656,7 +680,7 @@ class OverlayService : Service() {
             walkAnim = null
             walking = false
             a.cancel()
-            charView.scaleX = 1f
+            endFacing()
             savePos()
             setImage(if (idleMode) 5 else 1)
         }

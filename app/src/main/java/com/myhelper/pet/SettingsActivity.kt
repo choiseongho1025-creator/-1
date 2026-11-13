@@ -321,14 +321,19 @@ class SettingsActivity : Activity() {
         root.addView(spinner(arrayOf("화면 전체", "아래쪽", "가로로만"), p.getInt("walk_range", 0)) {
             p.edit().putInt("walk_range", it).apply()
         })
-        root.addView(tv("이동 이미지가 원래 바라보는 방향", 14f).apply { setPadding(0, dp(10), 0, 0) })
+        root.addView(tv("이미지가 원래 바라보는 방향 (모든 이미지 공통)", 14f).apply { setPadding(0, dp(10), 0, 0) })
         val fg = RadioGroup(this)
         fg.addView(RadioButton(this).apply { text = "오른쪽"; id = 7001 })
         fg.addView(RadioButton(this).apply { text = "왼쪽"; id = 7002 })
         fg.check(if (p.getInt("walk_face", 0) == 0) 7001 else 7002)
         fg.setOnCheckedChangeListener { _, id -> p.edit().putInt("walk_face", if (id == 7001) 0 else 1).apply() }
         root.addView(fg)
-        note("이동 이미지는 오른쪽을 바라보는 모습으로 만들면 가장 편해요. 오른쪽으로 갈 때는 그대로, 왼쪽으로 갈 때는 좌우 반전돼요. 이미지가 왼쪽을 보고 있다면 위에서 “왼쪽”을 고르세요. 이미지 안의 글자도 같이 뒤집혀 보여요.")
+        root.addView(CheckBox(this).apply {
+            text = "멈춘 뒤에도 마지막 방향 유지 (모든 이미지에 적용)"
+            isChecked = p.getBoolean("face_keep", true)
+            setOnCheckedChangeListener { _, c -> p.edit().putBoolean("face_keep", c).apply() }
+        })
+        note("기본, 터치 등 모든 이미지를 오른쪽을 바라보는 모습으로 만들면 가장 편해요. 마지막으로 오른쪽으로 걸었다면 그대로, 왼쪽으로 걸었다면 모든 이미지가 좌우 반전돼요. 이미지가 왼쪽을 보고 있다면 위에서 “왼쪽”을 고르세요. 이미지 안의 글자도 같이 뒤집혀 보여요.")
         note("꾹 눌러 들면 양쪽 가장자리에 세로 바가 생겨요. 바 위에서 놓으면 캐릭터가 거기서 쉬고(기본 이미지), 이동이 멈춰요. 다시 꾹 눌러 바 밖으로 끌어내면 이동이 재개돼요. 세로 바 두께는 아래 바와 같은 설정을 써요. 이동은 대기(i) 시간에 영향을 주지 않아요.")
     }
 
