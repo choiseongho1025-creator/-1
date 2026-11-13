@@ -91,6 +91,7 @@ class SettingsActivity : Activity() {
         permSection()
         menuSection()
         dragSection()
+        walkSection()
         batterySection()
         idleSection()
         notifSection()
@@ -291,6 +292,46 @@ class SettingsActivity : Activity() {
         note("0.5초로 하면 반응이 빠른 대신, 일반 터치와 헷갈려 의도치 않게 들어 올려질 수 있어요.")
     }
 
+    // ---------------- 이동 ----------------
+    private fun walkSection() {
+        header("이동 (돌아다니기)")
+        val on = p.getBoolean("walk_on", false)
+        root.addView(CheckBox(this).apply {
+            text = "이동 사용"
+            isChecked = on
+            setOnCheckedChangeListener { _, c -> p.edit().putBoolean("walk_on", c).apply(); build() }
+        })
+        if (!on) {
+            note("켜면 기본(a) 상태에서 캐릭터가 화면을 돌아다녀요. 꾹 눌러 들면 양쪽 가장자리에 세로 바가 생기고, 거기서 놓으면 그 자리에서 쉬어요.")
+            return
+        }
+        root.addView(tv("시작 대기 방식", 14f).apply { setPadding(0, dp(10), 0, 0) })
+        val wg = RadioGroup(this)
+        wg.addView(RadioButton(this).apply { text = "선택한 시간(고정)"; id = 6001 })
+        wg.addView(RadioButton(this).apply { text = "5~15초 랜덤"; id = 6002 })
+        wg.check(if (p.getInt("walk_mode", 0) == 0) 6001 else 6002)
+        wg.setOnCheckedChangeListener { _, id -> p.edit().putInt("walk_mode", if (id == 6001) 0 else 1).apply(); build() }
+        root.addView(wg)
+        if (p.getInt("walk_mode", 0) == 0) slider("시작 대기", "초", "walk_wait", 5, 15, 10)
+        root.addView(tv("속도", 14f).apply { setPadding(0, dp(10), 0, 0) })
+        root.addView(spinner(arrayOf("느리게", "보통", "빠르게"), p.getInt("walk_speed", 1)) {
+            p.edit().putInt("walk_speed", it).apply()
+        })
+        root.addView(tv("움직이는 범위", 14f).apply { setPadding(0, dp(10), 0, 0) })
+        root.addView(spinner(arrayOf("화면 전체", "아래쪽", "가로로만"), p.getInt("walk_range", 0)) {
+            p.edit().putInt("walk_range", it).apply()
+        })
+        root.addView(tv("이동 이미지가 원래 바라보는 방향", 14f).apply { setPadding(0, dp(10), 0, 0) })
+        val fg = RadioGroup(this)
+        fg.addView(RadioButton(this).apply { text = "오른쪽"; id = 7001 })
+        fg.addView(RadioButton(this).apply { text = "왼쪽"; id = 7002 })
+        fg.check(if (p.getInt("walk_face", 0) == 0) 7001 else 7002)
+        fg.setOnCheckedChangeListener { _, id -> p.edit().putInt("walk_face", if (id == 7001) 0 else 1).apply() }
+        root.addView(fg)
+        note("이동 이미지는 오른쪽을 바라보는 모습으로 만들면 가장 편해요. 오른쪽으로 갈 때는 그대로, 왼쪽으로 갈 때는 좌우 반전돼요. 이미지가 왼쪽을 보고 있다면 위에서 “왼쪽”을 고르세요. 이미지 안의 글자도 같이 뒤집혀 보여요.")
+        note("꾹 눌러 들면 양쪽 가장자리에 세로 바가 생겨요. 바 위에서 놓으면 캐릭터가 거기서 쉬고(기본 이미지), 이동이 멈춰요. 다시 꾹 눌러 바 밖으로 끌어내면 이동이 재개돼요. 세로 바 두께는 아래 바와 같은 설정을 써요. 이동은 대기(i) 시간에 영향을 주지 않아요.")
+    }
+
     // ---------------- 모양 ----------------
     private fun slider(prefix: String, unit: String, key: String, lo: Int, hi: Int, def: Int) {
         val cur = p.getInt(key, def).coerceIn(lo, hi)
@@ -343,7 +384,7 @@ class SettingsActivity : Activity() {
     // ---------------- 이미지 ----------------
     private fun slotPreview(slot: Int): Drawable {
         var f = File(filesDir, "img_$slot")
-        if (slot == 6 && !f.exists()) f = File(filesDir, "img_1")
+        if ((slot == 6 || slot == 7) && !f.exists()) f = File(filesDir, "img_1")
         if (f.exists()) {
             try {
                 val d = ImageDecoder.decodeDrawable(ImageDecoder.createSource(f)) { dec, info, _ ->
@@ -363,7 +404,7 @@ class SettingsActivity : Activity() {
     private fun imageSection() {
         header("캐릭터 이미지")
         note("GIF, PNG, JPG, WebP 모두 쓸 수 있어요. 정사각형 이미지를 권장하며, 이 정사각형이 캐릭터의 크기이자 터치 영역이에요. 정사각형이 아니면 틀 안에 맞춰서 보여줘요. 설정하지 않으면 기본 이모지가 나와요.")
-        for (slot in 1..6) {
+        for (slot in 1..7) {
             root.addView(tv(Cfg.SLOT_TITLES[slot], 16f, true).apply { setPadding(0, dp(16), 0, 0) })
             root.addView(tv(Cfg.SLOT_DESCS[slot], 13f, false, 0xFF666666.toInt()))
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -392,7 +433,7 @@ class SettingsActivity : Activity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         val slot = requestCode - 100
-        if (resultCode != RESULT_OK || slot !in 1..6) return
+        if (resultCode != RESULT_OK || slot !in 1..7) return
         val uri = data?.data ?: return
         try {
             val tmp = File(filesDir, "img_${slot}.tmp")

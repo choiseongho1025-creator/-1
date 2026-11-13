@@ -58,7 +58,7 @@ object Cfg {
 
     // 이미지 슬롯 1~5 = a, b, d, e, i
     val SLOT_TITLES = arrayOf(
-        "", "a. 기본 상태", "b. 터치했을 때", "d. 꾹 눌러 들고 있을 때", "e. 배터리 부족", "i. 대기 상태", "g. 알림이 왔을 때"
+        "", "a. 기본 상태", "b. 터치했을 때", "d. 꾹 눌러 들고 있을 때", "e. 배터리 부족", "i. 대기 상태", "g. 알림이 왔을 때", "이동. 돌아다닐 때"
     )
     val SLOT_DESCS = arrayOf(
         "",
@@ -67,7 +67,8 @@ object Cfg {
         "1초 동안 꾹 눌러서 들고 있는 동안 나오는 모습이에요.",
         "배터리가 설정한 %까지 떨어졌을 때 나오는 모습이에요.",
         "5분 동안 아무 일도 없을 때 계속 반복되는 모습이에요. (혼잣말을 끄면 30초)",
-        "다른 앱에서 알림이 왔을 때 나오는 모습이에요. 설정하지 않으면 기본(a) 이미지를 그대로 써요."
+        "다른 앱에서 알림이 왔을 때 나오는 모습이에요. 설정하지 않으면 기본(a) 이미지를 그대로 써요.",
+        "화면을 돌아다닐 때 나오는 모습이에요. 오른쪽을 바라보는 모습으로 만들어 주세요. 왼쪽으로 갈 때 자동으로 좌우 반전돼요. 설정하지 않으면 기본(a) 이미지를 써요."
     )
 }
 
@@ -149,7 +150,7 @@ object Apps {
 }
 
 object Media {
-    private val EMOJI = arrayOf("", "😺", "😸", "😲", "😿", "😴", "😮")
+    private val EMOJI = arrayOf("", "😺", "😸", "😲", "😿", "😴", "😮", "🐾")
 
     fun defaultDrawable(c: Context, slot: Int, px: Int = 256): Drawable {
         val bmp = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
@@ -159,7 +160,7 @@ object Media {
             textAlign = Paint.Align.CENTER
         }
         val y = px / 2f - (paint.descent() + paint.ascent()) / 2f
-        cv.drawText(EMOJI[slot.coerceIn(1, 6)], px / 2f, y, paint)
+        cv.drawText(EMOJI[slot.coerceIn(1, 7)], px / 2f, y, paint)
         return BitmapDrawable(c.resources, bmp)
     }
 

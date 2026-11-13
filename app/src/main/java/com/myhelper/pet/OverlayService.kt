@@ -1,5 +1,7 @@
 package com.myhelper.pet
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.app.Notification
 import android.app.NotificationChannel
@@ -42,6 +44,7 @@ import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.animation.BounceInterpolator
 import android.view.animation.DecelerateInterpolator
+import android.view.animation.LinearInterpolator
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -111,6 +114,13 @@ class OverlayService : Service() {
     private var activeNotifPkg: String? = null
     private var activeNotifIntent: PendingIntent? = null
     private var effectAnim: ValueAnimator? = null
+    private var walkAnim: ValueAnimator? = null
+    private var walking = false
+    private var parked = false
+    private val T_WALK = Any()
+    private var sideL: View? = null
+    private var sideR: View? = null
+    private var overSide = 0
 
     private var currentSlot = -1
     private var lastSlot = 1
@@ -148,6 +158,8 @@ class OverlayService : Service() {
             }
             "h_idx" -> if (!busy && !idleMode) scheduleH()
             "h_on" -> { resetIdle(); if (!busy && !dragging) toA() }
+            "walk_on" -> { if (walkOn()) scheduleWalk() else { setParked(false); stopWalk() } }
+            "walk_mode", "walk_wait" -> if (!busy && !dragging) scheduleWalk()
         }
     }
 
@@ -206,6 +218,7 @@ class OverlayService : Service() {
         homePkgs = Apps.homePackages(this)
         loadScreen()
         buildChar()
+        parked = prefs.getBoolean("parked", false) && walkOn()
         prefs.registerOnSharedPreferenceChangeListener(prefListener)
         running = true
         instance = this
@@ -230,8 +243,9 @@ class OverlayService : Service() {
             try { unregisterReceiver(batteryReceiver) } catch (e: Exception) { }
             prefs.unregisterOnSharedPreferenceChangeListener(prefListener)
             effectAnim?.cancel()
+            walkAnim?.cancel()
             savePos()
-            hideBubble(); closeMenu(); hideBar()
+            hideBubble(); closeMenu(); hideBar(); hideSideBars()
             if (charAdded) { try { wm.removeView(charView) } catch (e: Exception) { }; charAdded = false }
         }
         super.onDestroy()
@@ -474,6 +488,7 @@ class OverlayService : Service() {
     }
 
     private fun cancelEvent() {
+        stopWalk()
         mh.removeCallbacksAndMessages(T_EVENT)
         eventSerial++
         stopEffect()
@@ -500,6 +515,7 @@ class OverlayService : Service() {
 
     /** 기본(a) 상태로 복귀. 5분 동안 아무 일 없으면 i 이미지 */
     private fun toA() {
+        stopWalk()
         mh.removeCallbacksAndMessages(T_EVENT)
         stopEffect()
         hideBubble()
@@ -514,6 +530,7 @@ class OverlayService : Service() {
             setImage(if (idleMode) 5 else 1)
         }
         scheduleH()
+        scheduleWalk()
     }
 
     private fun resetIdle() {
@@ -526,6 +543,7 @@ class OverlayService : Service() {
 
     private fun enterIdle() {
         idleMode = true
+        stopWalk()
         if (!busy && !dragging) setImage(5)
     }
 
@@ -559,10 +577,96 @@ class OverlayService : Service() {
         showEvent(1, msg, 3000, 0, once = false, countIdle = false)
     }
 
+    // ============ 이동 (돌아다니기) ============
+    private fun walkOn() = prefs.getBoolean("walk_on", false)
+
+    private fun walkSlot(): Int = if (File(filesDir, "img_7").exists()) 7 else 1
+
+    private fun setParked(v: Boolean) {
+        parked = v
+        prefs.edit().putBoolean("parked", v).apply()
+    }
+
+    private fun scheduleWalk() {
+        mh.removeCallbacksAndMessages(T_WALK)
+        if (!walkOn() || parked || idleMode) return
+        val wait: Long = if (prefs.getInt("walk_mode", 0) == 1) {
+            5000L + Random.nextInt(10001)
+        } else {
+            prefs.getInt("walk_wait", 10).coerceIn(5, 15) * 1000L
+        }
+        mh.postAtTime({ startWalk() }, T_WALK, SystemClock.uptimeMillis() + wait)
+    }
+
+    private fun startWalk() {
+        if (!walkOn() || parked || busy || dragging || idleMode || walking || !charAdded) return
+        val s = charLp.width
+        val bottomY = max(0, screenH - s - barHeight() - dp(8))
+        val tx = Random.nextInt(max(1, screenW - s + 1))
+        val ty = when (prefs.getInt("walk_range", 0)) {
+            1 -> bottomY
+            2 -> posY
+            else -> Random.nextInt(max(1, bottomY + 1))
+        }
+        val dx = tx - posX
+        val dy = ty - posY
+        val dist = hypot(dx.toFloat(), dy.toFloat())
+        if (dist < dp(20)) { scheduleWalk(); return }
+        val speedDp = when (prefs.getInt("walk_speed", 1)) { 0 -> 35f; 2 -> 120f; else -> 70f }
+        val duration = (dist / (speedDp * resources.displayMetrics.density) * 1000f).toLong().coerceAtLeast(300L)
+        if (Math.abs(dx) > dp(4)) {
+            val faceRight = prefs.getInt("walk_face", 0) == 0
+            val goingLeft = dx < 0
+            charView.scaleX = if (faceRight == goingLeft) -1f else 1f
+        }
+        walking = true
+        setImage(walkSlot())
+        val sx = posX
+        val sy = posY
+        var canceled = false
+        val a = ValueAnimator.ofFloat(0f, 1f)
+        a.duration = duration
+        a.interpolator = LinearInterpolator()
+        a.addUpdateListener {
+            val f = it.animatedValue as Float
+            posX = (sx + dx * f).toInt()
+            posY = (sy + dy * f).toInt()
+            applyPos()
+        }
+        a.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationCancel(animation: Animator) { canceled = true }
+            override fun onAnimationEnd(animation: Animator) {
+                if (canceled) return
+                walking = false
+                walkAnim = null
+                charView.scaleX = 1f
+                savePos()
+                setImage(if (idleMode) 5 else 1)
+                scheduleWalk()
+            }
+        })
+        walkAnim = a
+        a.start()
+    }
+
+    private fun stopWalk() {
+        mh.removeCallbacksAndMessages(T_WALK)
+        val a = walkAnim
+        if (walking && a != null) {
+            walkAnim = null
+            walking = false
+            a.cancel()
+            charView.scaleX = 1f
+            savePos()
+            setImage(if (idleMode) 5 else 1)
+        }
+    }
+
     // ============ 터치 처리 (b, c, d) ============
     private fun onCharTouch(e: MotionEvent) {
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                stopWalk()
                 downX = e.rawX; downY = e.rawY
                 grabDX = e.rawX - posX; grabDY = e.rawY - posY
                 moved = false
@@ -573,7 +677,7 @@ class OverlayService : Service() {
             MotionEvent.ACTION_MOVE -> {
                 if (longPressed) {
                     moveTo(e.rawX, e.rawY)
-                    updateBarState(e.rawY)
+                    updateBarState(e.rawX, e.rawY)
                 } else if (hypot(e.rawX - downX, e.rawY - downY) > ViewConfiguration.get(this).scaledTouchSlop) {
                     moved = true
                     mh.removeCallbacksAndMessages(T_LONG)
@@ -582,15 +686,17 @@ class OverlayService : Service() {
             MotionEvent.ACTION_UP -> {
                 mh.removeCallbacksAndMessages(T_LONG)
                 if (longPressed) {
-                    updateBarState(e.rawY)
+                    updateBarState(e.rawX, e.rawY)
                     endDrag()
                 } else if (!moved) {
                     onTap()
+                } else {
+                    toA()
                 }
             }
             MotionEvent.ACTION_CANCEL -> {
                 mh.removeCallbacksAndMessages(T_LONG)
-                if (longPressed) endDrag()
+                if (longPressed) endDrag() else toA()
             }
         }
     }
@@ -639,6 +745,8 @@ class OverlayService : Service() {
         setImage(3)
         startEffect(Cfg.effect(prefs, "d"), false)
         showBar()
+        overSide = 0
+        if (walkOn()) showSideBars()
     }
 
     private fun moveTo(rawX: Float, rawY: Float) {
@@ -651,23 +759,45 @@ class OverlayService : Service() {
 
     private fun barHeight() = dp(prefs.getInt("bar_dp", 90))
 
-    private fun updateBarState(rawY: Float) {
+    private fun updateBarState(rawX: Float, rawY: Float) {
         val over = rawY >= screenH - barHeight()
         if (over != overBar) {
             overBar = over
             barView?.setBackgroundColor(if (over) 0x99FF3B30.toInt() else 0x99000000.toInt())
             if (over) showBubble(dText()) else hideBubble()
         }
+        if (sideL != null) {
+            val bw = barHeight()
+            val sd = if (over) 0 else if (rawX <= bw) 1 else if (rawX >= screenW - bw) 2 else 0
+            if (sd != overSide) {
+                overSide = sd
+                sideL?.setBackgroundColor(if (sd == 1) 0x992F7BF5.toInt() else 0x99000000.toInt())
+                sideR?.setBackgroundColor(if (sd == 2) 0x992F7BF5.toInt() else 0x99000000.toInt())
+            }
+        }
     }
 
     private fun endDrag() {
         dragging = false
-        hideBar()
         val exit = overBar
+        val sd = overSide
+        hideBar()
+        hideSideBars()
         overBar = false
+        overSide = 0
         if (exit) {
             exitCharacter()
+        } else if (sd != 0 && walkOn()) {
+            setParked(true)
+            posX = if (sd == 1) 0 else max(0, screenW - charLp.width)
+            applyPos()
+            cancelEvent()
+            savePos()
+            busy = false
+            toA()
+            Toast.makeText(this, "가장자리에서 쉬어요. 다시 꾹 눌러 끌어내면 이동해요", Toast.LENGTH_SHORT).show()
         } else {
+            setParked(false)
             cancelEvent()
             savePos()
             busy = false
@@ -700,6 +830,38 @@ class OverlayService : Service() {
         wm.addView(v, lp)
         barView = v
         barAdded = true
+    }
+
+    private fun showSideBars() {
+        if (sideL != null) return
+        val w = barHeight()
+        val h = max(1, screenH - barHeight())
+        fun make(left: Boolean): View {
+            val v = View(this).apply { setBackgroundColor(0x99000000.toInt()) }
+            val lp = WindowManager.LayoutParams(
+                w, h,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+                x = if (left) 0 else screenW - w
+                y = 0
+            }
+            wm.addView(v, lp)
+            return v
+        }
+        sideL = make(true)
+        sideR = make(false)
+    }
+
+    private fun hideSideBars() {
+        sideL?.let { try { wm.removeView(it) } catch (e: Exception) { } }
+        sideR?.let { try { wm.removeView(it) } catch (e: Exception) { } }
+        sideL = null
+        sideR = null
+        overSide = 0
     }
 
     private fun hideBar() {
