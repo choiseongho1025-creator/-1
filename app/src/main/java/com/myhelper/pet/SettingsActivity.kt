@@ -90,6 +90,7 @@ class SettingsActivity : Activity() {
         basicSection()
         permSection()
         menuSection()
+        dragSection()
         batterySection()
         idleSection()
         notifSection()
@@ -277,6 +278,19 @@ class SettingsActivity : Activity() {
         })
     }
 
+    // ---------------- d 꾹 누르기 ----------------
+    private fun dragSection() {
+        header("꾹 누르기 (d)")
+        root.addView(tv("캐릭터를 들어 올리는 데 필요한 누르는 시간", 14f))
+        val dg = RadioGroup(this)
+        dg.addView(RadioButton(this).apply { text = "1초"; id = 5001 })
+        dg.addView(RadioButton(this).apply { text = "0.5초 (빠르게)"; id = 5002 })
+        dg.check(if (p.getInt("long_ms", 1000) == 500) 5002 else 5001)
+        dg.setOnCheckedChangeListener { _, id -> p.edit().putInt("long_ms", if (id == 5002) 500 else 1000).apply() }
+        root.addView(dg)
+        note("0.5초로 하면 반응이 빠른 대신, 일반 터치와 헷갈려 의도치 않게 들어 올려질 수 있어요.")
+    }
+
     // ---------------- 모양 ----------------
     private fun slider(prefix: String, unit: String, key: String, lo: Int, hi: Int, def: Int) {
         val cur = p.getInt(key, def).coerceIn(lo, hi)
@@ -328,7 +342,8 @@ class SettingsActivity : Activity() {
 
     // ---------------- 이미지 ----------------
     private fun slotPreview(slot: Int): Drawable {
-        val f = File(filesDir, "img_$slot")
+        var f = File(filesDir, "img_$slot")
+        if (slot == 6 && !f.exists()) f = File(filesDir, "img_1")
         if (f.exists()) {
             try {
                 val d = ImageDecoder.decodeDrawable(ImageDecoder.createSource(f)) { dec, info, _ ->
@@ -348,7 +363,7 @@ class SettingsActivity : Activity() {
     private fun imageSection() {
         header("캐릭터 이미지")
         note("GIF, PNG, JPG, WebP 모두 쓸 수 있어요. 정사각형 이미지를 권장하며, 이 정사각형이 캐릭터의 크기이자 터치 영역이에요. 정사각형이 아니면 틀 안에 맞춰서 보여줘요. 설정하지 않으면 기본 이모지가 나와요.")
-        for (slot in 1..5) {
+        for (slot in 1..6) {
             root.addView(tv(Cfg.SLOT_TITLES[slot], 16f, true).apply { setPadding(0, dp(16), 0, 0) })
             root.addView(tv(Cfg.SLOT_DESCS[slot], 13f, false, 0xFF666666.toInt()))
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -377,7 +392,7 @@ class SettingsActivity : Activity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         val slot = requestCode - 100
-        if (resultCode != RESULT_OK || slot !in 1..5) return
+        if (resultCode != RESULT_OK || slot !in 1..6) return
         val uri = data?.data ?: return
         try {
             val tmp = File(filesDir, "img_${slot}.tmp")

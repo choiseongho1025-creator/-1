@@ -3,7 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-base { archivesName.set("나의 도우미 beta3") }
+base { archivesName.set("나의 도우미 beta4") }
 
 android {
     namespace = "com.myhelper.pet"
@@ -12,8 +12,8 @@ android {
         applicationId = "com.myhelper.pet"
         minSdk = 28
         targetSdk = 34
-        versionCode = 3
-        versionName = "beta3"
+        versionCode = 4
+        versionName = "beta4"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

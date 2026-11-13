@@ -567,7 +567,8 @@ class OverlayService : Service() {
                 grabDX = e.rawX - posX; grabDY = e.rawY - posY
                 moved = false
                 longPressed = false
-                mh.postAtTime({ longPressed = true; startDrag() }, T_LONG, SystemClock.uptimeMillis() + 1000)
+                mh.postAtTime({ longPressed = true; startDrag() }, T_LONG,
+                    SystemClock.uptimeMillis() + prefs.getInt("long_ms", 1000).toLong())
             }
             MotionEvent.ACTION_MOVE -> {
                 if (longPressed) {
@@ -966,7 +967,7 @@ class OverlayService : Service() {
         sb.setSpan(ForegroundColorSpan(0xFF0B8FE0.toInt()), st, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         sb.setSpan(StyleSpan(Typeface.BOLD), st, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         sb.append(if (honorific) "에서 문자가 왔습니다." else "에서 문자가 왔어!")
-        showEvent(1, sb, 5000, Cfg.effect(prefs, "g"))
+        showEvent(if (File(filesDir, "img_6").exists()) 6 else 1, sb, 5000, Cfg.effect(prefs, "g"))
         activeNotifPkg = pkg
         activeNotifIntent = pi
     }
