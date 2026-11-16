@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>overlay</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:transparent;font-family:"Malgun Gothic","Noto Sans KR",system-ui,sans-serif;user-select:none;-webkit-user-select:none}
+#catcher{position:absolute;inset:0;display:none;z-index:3}
+.vb,#bar{position:absolute;display:none;background:rgba(0,0,0,.6);z-index:4;transition:background .15s}
+#bar{left:0;right:0;bottom:0}
+.vb{top:0}#vl{left:0}#vr{right:0}
+#bar.red{background:rgba(255,59,48,.65)}
+.vb.on{background:rgba(47,123,245,.65)}
+#pet{--s:96px;position:absolute;left:0;top:0;width:var(--s);height:var(--s);z-index:5;cursor:grab}
+#face{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:calc(var(--s)*.78);line-height:1;transform:scaleX(var(--flip,1))}
+#face img{width:100%;height:100%;object-fit:contain;pointer-events:none;-webkit-user-drag:none}
+#bubble,#menu{position:absolute;display:none;background:#fff;color:#222;border:1px solid #555;border-radius:14px;z-index:6}
+#bubble .app{color:#0b8fe0;font-weight:700}
+#bubble{max-width:360px;padding:8px 12px;font-size:14px;line-height:1.4;pointer-events:none}
+#menu{z-index:7;padding:6px;gap:2px;border-radius:16px}
+#menu button{border:0;background:none;color:#222;font:inherit;font-size:12px;min-width:68px;padding:6px 8px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;border-radius:10px}
+#menu button:hover{background:#ece9fb}
+#menu .ic{font-size:26px;line-height:1.2;height:34px;display:flex;align-items:center}
+#menu .ic img{width:30px;height:30px}
+#menu .lb{max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fx1{animation:k1 calc(.35s*var(--k,1)) ease-out var(--it,infinite) alternate}
+.fx2{animation:k2 calc(.1s*var(--k,1)) linear var(--it,infinite) alternate}
+.fx3{animation:k3 calc(.35s*var(--k,1)) ease-in-out var(--it,infinite) alternate}
+.fx4{animation:k4 calc(.18s*var(--k,1)) ease-in-out var(--it,infinite) alternate}
+.fx5{animation:k5 calc(.3s*var(--k,1)) linear var(--it,infinite) alternate}
+.fx6{animation:k6 calc(.65s*var(--k,1)) cubic-bezier(.34,1.56,.64,1) 1}
+@keyframes k1{to{transform:translateY(calc(var(--s)*-.3))}}
+@keyframes k2{from{transform:translateX(calc(var(--s)*-.1))}to{transform:translateX(calc(var(--s)*.1))}}
+@keyframes k3{to{transform:scale(.8)}}
+@keyframes k4{from{transform:rotate(-10deg) scale(.85)}to{transform:rotate(10deg) scale(.85)}}
+@keyframes k5{to{opacity:.25}}
+@keyframes k6{from{transform:translateY(calc(var(--s)*-1.2))}to{transform:none}}
+</style>
+</head>
+<body>
+<div id="catcher"></div>
+<div id="vl" class="vb"></div><div id="vr" class="vb"></div><div id="bar"></div>
+<div id="pet" data-hit><div id="face"></div></div>
+<div id="bubble"></div>
+<div id="menu" data-hit></div>
+<script src="overlay.js"></script>
+</body>
+</html>

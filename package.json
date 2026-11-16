@@ -1,0 +1,23 @@
+{
+  "name": "my-helper-windows",
+  "productName": "나의 도우미",
+  "version": "0.7.0",
+  "description": "나의 도우미 - 바탕화면 캐릭터 (Windows)",
+  "author": "my-helper",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable --publish never"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.myhelper.pet.win",
+    "productName": "나의 도우미",
+    "directories": { "output": "dist" },
+    "win": { "target": ["portable"] },
+    "portable": { "artifactName": "나의 도우미 beta7 Windows.${ext}" }
+  }
+}
