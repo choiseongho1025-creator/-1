@@ -1,5 +1,13 @@
 const { contextBridge, ipcRenderer } = require('electron');
-const { pathToFileURL } = require('url');
+
+// 샌드박스 안에서는 url 모듈의 pathToFileURL을 쓸 수 없어서 직접 만든다
+function fileUrl(p) {
+  const s = String(p).replace(/\\/g, '/');
+  const m = /^([A-Za-z]:)\/(.*)$/.exec(s);
+  const drive = m ? m[1] + '/' : '';
+  const rest = m ? m[2] : s.replace(/^\/+/, '');
+  return 'file:///' + drive + rest.split('/').map(encodeURIComponent).join('/');
+}
 
 contextBridge.exposeInMainWorld('api', {
   getConfig: () => ipcRenderer.invoke('cfg:get'),
@@ -21,5 +29,5 @@ contextBridge.exposeInMainWorld('api', {
   testNotif: () => ipcRenderer.send('notif:test'),
   notifStatus: () => ipcRenderer.invoke('notif:status'),
   onNotifStatus: (cb) => ipcRenderer.on('notif:status', (_e, s) => cb(s)),
-  fileUrl: (p) => pathToFileURL(p).href,
+  fileUrl: (p) => fileUrl(p),
 });
