@@ -32,6 +32,24 @@ let saveTimer = null;
 let firstRun = false;
 
 const cfgFile = () => path.join(app.getPath('userData'), 'config.json');
+const logFile = () => path.join(app.getPath('userData'), 'log.txt');
+function log(msg) {
+  try {
+    const f = logFile();
+    fs.mkdirSync(path.dirname(f), { recursive: true });
+    let old = '';
+    try { old = fs.readFileSync(f, 'utf8'); } catch (e) {}
+    fs.writeFileSync(f, (old + new Date().toISOString() + ' ' + msg + '\n').slice(-60000));
+  } catch (e) {}
+}
+function attachLog(win, name) {
+  win.webContents.on('console-message', (_e, level, message) => {
+    if (typeof level === 'number' && level >= 2) log(name + ' 콘솔: ' + message);
+  });
+  win.webContents.on('render-process-gone', (_e, d) => log(name + ' 화면이 종료됨: ' + (d && d.reason)));
+  win.webContents.on('did-fail-load', (_e, code, desc, url) => log(name + ' 불러오기 실패: ' + desc + ' ' + url));
+}
+process.on('uncaughtException', (e) => log('main 오류: ' + (e && e.stack ? e.stack : e)));
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
 function merge(t, p) {
   for (const k of Object.keys(p)) {
@@ -80,6 +98,7 @@ function createOverlay() {
       contextIsolation: true, nodeIntegration: false, backgroundThrottling: false,
     },
   });
+  attachLog(overlay, '캐릭터');
   overlay.setAlwaysOnTop(true, 'screen-saver');
   overlay.setIgnoreMouseEvents(true, { forward: true });
   overlay.loadFile(path.join(__dirname, 'overlay.html'));
@@ -100,6 +119,7 @@ function openSettings() {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   });
   settingsWin.setMenuBarVisibility(false);
+  attachLog(settingsWin, '설정');
   settingsWin.loadFile(path.join(__dirname, 'settings.html'));
   settingsWin.on('closed', () => { settingsWin = null; });
 }
@@ -251,6 +271,10 @@ async function openNotif(id) {
 }
 
 // ---------- IPC ----------
+ipcMain.on('log', (_e, msg) => log(String(msg)));
+ipcMain.on('log:open', () => {
+  try { if (!fs.existsSync(logFile())) log('기록 시작'); shell.showItemInFolder(logFile()); } catch (e) {}
+});
 ipcMain.handle('notif:status', () => notifStatus);
 ipcMain.handle('notif:open', (_e, id) => openNotif(id));
 ipcMain.on('notif:test', () => {
@@ -341,6 +365,7 @@ app.on('before-quit', () => { stopFg(); stopNotif(); });
 
 app.whenReady().then(() => {
   loadCfg();
+  log('시작 (버전 ' + app.getVersion() + ')');
   createOverlay();
   createTray();
   applyAutostart();

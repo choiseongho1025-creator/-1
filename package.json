@@ -1,7 +1,7 @@
 {
   "name": "my-helper-windows",
   "productName": "나의 도우미",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "나의 도우미 - 바탕화면 캐릭터 (Windows)",
   "author": "my-helper",
   "main": "main.js",
@@ -18,6 +18,6 @@
     "productName": "나의 도우미",
     "directories": { "output": "dist" },
     "win": { "target": ["portable"] },
-    "portable": { "artifactName": "나의 도우미 beta7 Windows.${ext}" }
+    "portable": { "artifactName": "나의 도우미 beta7.1 Windows.${ext}" }
   }
 }

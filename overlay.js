@@ -1,5 +1,7 @@
 (async () => {
   const $ = (s) => document.querySelector(s);
+  addEventListener('error', (e) => api.log('캐릭터 화면 오류: ' + e.message + ' (줄 ' + e.lineno + ')'));
+  addEventListener('unhandledrejection', (e) => api.log('캐릭터 화면 오류: ' + (e.reason && e.reason.message || e.reason)));
   let cfg = await api.getConfig();
   const pet = $('#pet'), face = $('#face'), bub = $('#bubble'), menu = $('#menu');
   const bar = $('#bar'), vl = $('#vl'), vr = $('#vr'), catcher = $('#catcher');
@@ -75,10 +77,13 @@
     if (k === curKey && v === curV) return;
     curKey = k; curV = v;
     face.textContent = '';
-    if (im) {
+    let url = null;
+    if (im && im.file) { try { url = api.fileUrl(im.file); } catch (e) { url = null; } }
+    if (url) {
       const img = new Image();
       img.draggable = false;
-      img.src = api.fileUrl(im.file) + '?t=' + Date.now();
+      img.onerror = () => { api.log('이미지를 불러오지 못했어요: ' + im.file); face.textContent = EM[k]; };
+      img.src = url;
       face.appendChild(img);
     } else {
       face.textContent = EM[k];

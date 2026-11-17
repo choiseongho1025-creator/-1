@@ -1,5 +1,6 @@
 (async () => {
   let cfg = await api.getConfig();
+  addEventListener('error', (e) => api.log('설정 화면 오류: ' + e.message + ' (줄 ' + e.lineno + ')'));
   const root = document.getElementById('app');
   const EFF = ['없음', '통통 튀기', '좌우 흔들기', '커졌다 작아지기', '회전 흔들기', '깜빡이기', '위에서 떨어지기'].map((n, i) => [i, n]);
   const getP = (o, k) => k.split('.').reduce((a, c) => (a == null ? a : a[c]), o);
@@ -74,6 +75,9 @@
     { t: 'sec', l: '캐릭터 이미지' },
     { t: 'note', l: 'GIF, PNG, JPG, WebP를 쓸 수 있어요. 정사각형 이미지를 권장하며, 정사각형이 아니면 틀 안에 맞춰서 보여줘요. 설정하지 않으면 기본 이모지가 나와요.' },
     { t: 'imgs' },
+
+    { t: 'sec', l: '문제가 생겼을 때' },
+    { t: 'logbtn' },
   ];
 
   const SLOTS = [
@@ -105,6 +109,12 @@
       else if (f.t === 'apps') { el = document.createElement('div'); dyn.apps = el; }
       else if (f.t === 'imgs') { el = document.createElement('div'); dyn.imgs = el; }
       else if (f.t === 'notif') { el = document.createElement('div'); dyn.notif = el; }
+      else if (f.t === 'logbtn') {
+        el = document.createElement('div');
+        const lb = document.createElement('button'); lb.textContent = '문제 기록 폴더 열기'; lb.onclick = () => api.openLog();
+        const ln = document.createElement('p'); ln.className = 'note'; ln.textContent = '캐릭터가 사라지거나 설정이 이상할 때 열리는 폴더의 log.txt 내용을 알려 주시면 원인을 찾는 데 도움이 돼요.';
+        el.append(lb, ln);
+      }
       else {
         el = mkRow(f.l);
         const cur = getP(cfg, f.k);
@@ -176,7 +186,7 @@
       const im = cfg.images[k];
       const d = document.createElement('div'); d.className = 'slot';
       const pv = document.createElement('div'); pv.className = 'pv';
-      if (im) { const g = new Image(); g.src = api.fileUrl(im.file); pv.appendChild(g); } else pv.textContent = EMO[k];
+      if (im) { try { const g = new Image(); g.onerror = () => { pv.textContent = EMO[k]; }; g.src = api.fileUrl(im.file); pv.appendChild(g); } catch (e) { pv.textContent = EMO[k]; } } else pv.textContent = EMO[k];
       const tx = document.createElement('div'); tx.className = 'tx';
       const b = document.createElement('b'); b.textContent = title;
       tx.append(b, desc);

@@ -30,4 +30,6 @@ contextBridge.exposeInMainWorld('api', {
   notifStatus: () => ipcRenderer.invoke('notif:status'),
   onNotifStatus: (cb) => ipcRenderer.on('notif:status', (_e, s) => cb(s)),
   fileUrl: (p) => fileUrl(p),
+  log: (m) => ipcRenderer.send('log', String(m)),
+  openLog: () => ipcRenderer.send('log:open'),
 });
